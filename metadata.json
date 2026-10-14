@@ -1,0 +1,6 @@
+{
+  "name": "Mahi: Sassy Voice AI",
+  "description": "Real-time, voice-to-voice sassy AI assistant with witty banter, live audio streaming, and browser actions powered by Gemini Live.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

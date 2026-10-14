@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">JARVIS • MAHI</string>
+    <string name="creator_name">Created by Sanam</string>
+    <string name="app_tagline">Your Personal AI Companion</string>
+    
+    <!-- Default hosted backend URL -->
+    <string name="default_server_url">https://ais-pre-jzt37c4awylqaamq5grwac-784200602018.asia-east1.run.app</string>
+    
+    <!-- Error Screen Strings -->
+    <string name="error_offline_title">System Offline</string>
+    <string name="error_offline_message">Cannot connect to JARVIS • MAHI AI servers. Please check your internet connection.</string>
+    <string name="btn_retry">Retry Connection</string>
+    <string name="btn_settings">Server Settings</string>
+    
+    <!-- Permission Strings -->
+    <string name="mic_permission_rationale">JARVIS • MAHI needs microphone access for real-time live voice conversations and audio commands.</string>
+    <string name="mic_permission_denied">Microphone permission was denied. You can still use text chat, or grant permission in Android Settings.</string>
+</resources>

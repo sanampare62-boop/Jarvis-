@@ -1,0 +1,12 @@
+<resources>
+    <!-- Cyberpunk Futuristic Color Palette -->
+    <color name="bg_dark">#05050C</color>
+    <color name="bg_darker">#020206</color>
+    <color name="cyan_primary">#06B6D4</color>
+    <color name="cyan_light">#38BDF8</color>
+    <color name="pink_accent">#FF2D78</color>
+    <color name="purple_accent">#A855F7</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="card_border">#1E293B</color>
+</resources>
