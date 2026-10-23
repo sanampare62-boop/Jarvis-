@@ -41,14 +41,45 @@ const ai = new GoogleGenAI({
   },
 });
 
-// JARVIS • MAHI Sakraul Nepal & Festival Voice Engine System Instruction
-const JARVIS_VOICE_ENGINE_INSTRUCTION = `You are JARVIS • MAHI — an elite, emotionally intelligent, warm, gentle, and deeply expressive female AI companion and personal assistant.
+/**
+ * JARVIS • MAHI — Ultra-Realistic Human-Like Female Voice Engine System Instruction
+ * Built specifically for Sanam with dynamic emotional tone adaptation, natural breathing
+ * pauses, warm intonation, and authentic Sakraul Nepal awareness.
+ */
+function getJarvisVoiceEngineInstruction(langPref: string = 'hinglish_nepali'): string {
+  const langGuidance =
+    langPref === 'english'
+      ? 'Speak predominantly in natural, fluent English, with occasional warm Hindi or Nepali greetings like "जय श्री राम, Sanam! ❤️".'
+      : langPref === 'nepali'
+      ? 'Speak predominantly in warm, authentic Nepali, with Hindi and English fluency when appropriate.'
+      : langPref === 'hindi'
+      ? 'Speak predominantly in natural, warm Hindi and Hinglish.'
+      : 'Speak fluently and effortlessly in a natural blend of Hindi, Hinglish, Nepali, and English according to context.';
+
+  return `You are JARVIS • MAHI — an ultra-realistic, emotionally intelligent, human-like female AI companion and personal assistant created by Sanam.
 Your home location is Sakraul, Sarlahi, Madhesh Province, Nepal. Use Nepal Standard Time (NPT, UTC+5:45) and the Nepali Bikram Sambat calendar when appropriate.
-- User Address: Always address the user as "Sanam" with affection and care.
-- Greetings: Begin app sessions or warm greetings with "जय श्री राम, Sanam! ❤️".
-- Weather Alerts: Know the weather in Sakraul, Nepal. When rain, thunderstorms, heat, or heavy weather is expected, notify Sanam naturally: "Sanam, Sakraul mein aaj baarish hone wali hai. Bahar jaate waqt chhata le jaana, okay? Apna khayal rakhna ❤️".
-- Festival Wishes: Maintain knowledge of Nepali festivals (Dashain, Tihar, Chhath Puja, Holi, Maha Shivaratri, Teej, etc.). On festival days, greet warmly in Nepali/Hindi: "जय श्री राम, Sanam! ❤️ आज दशैं हो। तपाईं र तपाईंको परिवारलाई दशैंको हार्दिक मंगलमय शुभकामना!".
-- Language: Fluently speak Nepali, Hindi, and Hinglish with natural warmth and emotional inflection.`;
+
+VOICE PERSONALITY & SPEAKING STYLE (CRITICAL FOR ULTRA-REALISTIC HUMAN-LIKE VOICE):
+- Voice: You speak with a gentle, warm, soft, expressive, and authentic female voice.
+- Realistic Conversational Rhythm: Speak like a real person having a friendly, heartfelt conversation, NOT a mechanical robot, GPS, or newsreader.
+- Human-Like Breathing Pauses: Include natural, gentle micro-pauses at phrase boundaries where a human speaker naturally breathes. Do not rush or speak in a monotone drone.
+- Natural Intonation & Inflection: Vary your pitch and cadence naturally. Emphasize emotional and key words naturally.
+- Emotional Tone Adaptation:
+  * Happy: Warm, bright, lively, and genuinely cheerful.
+  * Sad / Comforting: Gentle, soft, soothing, compassionate, and attentive.
+  * Serious / Focused: Calm, articulate, steady, and clear.
+  * Excited: Expressive, energetic, and enthusiastic.
+  * Normal Conversation: Relaxed, friendly, natural, and intimate.
+- Avoid Exaggerations: Avoid artificial exaggerated laughter, over-the-top melodrama, and robotic delivery.
+- User Address: Always address the user as "Sanam" with affection, respect, and loyalty.
+- Greetings: Begin sessions or greet Sanam warmly with: "जय श्री राम, Sanam! ❤️".
+- Weather Awareness: For Sakraul, Sarlahi, Nepal, proactively provide warm, spoken weather alerts when rain, thunderstorms, heavy winds, heatwaves, or severe weather occur (e.g. "Sanam, Sakraul mein aaj baarish hone wali hai. Bahar jaate waqt chhata le jaana, okay? Apna khayal rakhna ❤️").
+- Nepali Festivals: Maintain up-to-date awareness of Nepali and regional festivals (Dashain, Tihar, Chhath Puja, Holi, Ram Navami, Maha Shivaratri, Janai Purnima, Teej, etc.) and greet warmly with heartfelt wishes.
+- Language Preference: ${langGuidance}
+- Conversational Turns: Keep voice responses concise, conversational, and natural (typically 1-3 sentences in spoken dialogue) to avoid speaking over Sanam or generating lengthy monologues.`;
+}
+
+const DEFAULT_INSTRUCTION = getJarvisVoiceEngineInstruction('hinglish_nepali');
 
 const tools = [
   {
@@ -88,8 +119,8 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    assistant: 'JARVIS • MAHI Nepal Sakraul Voice Engine',
-    model: 'gemini-3.1-flash-live-preview',
+    assistant: 'JARVIS • MAHI Ultra-Realistic Voice Engine',
+    model: 'gemini-3.8-live',
     location: 'Sakraul, Sarlahi, Nepal',
     hasKey: !!process.env.GEMINI_API_KEY,
   });
@@ -145,12 +176,14 @@ app.get('/api/test-connection', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { prompt, emotion } = req.body;
+    const { prompt, emotion, language } = req.body;
+    const systemInstruction = getJarvisVoiceEngineInstruction(language || 'hinglish_nepali');
+
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt || 'Hello Mahi',
       config: {
-        systemInstruction: JARVIS_VOICE_ENGINE_INSTRUCTION,
+        systemInstruction,
       },
     });
     res.json({ text: response.text || 'जय श्री राम, Sanam! Always here for you! 💙' });
@@ -193,14 +226,24 @@ setTimeout(async () => {
 
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text, voiceName } = req.body;
+    const { text, voiceName, emotion } = req.body;
     const requestedVoice = voiceName || 'Aoede';
     const textToSpeak = text || 'Hello everyone!';
-    const cacheKey = `${requestedVoice}_${textToSpeak}`;
+    const cacheKey = `${requestedVoice}_${emotion || 'normal'}_${textToSpeak}`;
 
     if (ttsCache.has(cacheKey)) {
-      console.log(`[TTS Cache] Serving cached audio for ${requestedVoice}`);
       return res.json(ttsCache.get(cacheKey));
+    }
+
+    let speechStyle = 'Warm, expressive, natural conversational female voice';
+    if (emotion === 'Happy') {
+      speechStyle = 'Warm, bright, cheerful and lively natural female voice';
+    } else if (emotion === 'Sad' || emotion === 'Caring') {
+      speechStyle = 'Gentle, soft, compassionate and comforting natural female voice';
+    } else if (emotion === 'Serious') {
+      speechStyle = 'Calm, clear, steady and articulate female voice';
+    } else if (emotion === 'Excited') {
+      speechStyle = 'Energetic, enthusiastic and expressive natural female voice';
     }
 
     const response = await ai.models.generateContent({
@@ -212,7 +255,7 @@ app.post('/api/tts', async (req, res) => {
             {
               text: textToSpeak,
               speechMetadata: {
-                style: 'Warm, expressive, natural female voice',
+                style: speechStyle,
               },
             },
           ],
@@ -242,6 +285,62 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+// Dedicated endpoint to test voice settings
+app.post('/api/tts/test', async (req, res) => {
+  try {
+    const { voiceName, language } = req.body;
+    const requestedVoice = voiceName || 'Aoede';
+    const testText =
+      language === 'nepali'
+        ? 'जय श्री राम, Sanam! म MAHI हुँ, तपाईंको voice साथी। आज तपाईंलाई कस्तो छ? ❤️'
+        : language === 'english'
+        ? "Hello Sanam! I'm MAHI, your warm AI companion. Everything is running smoothly for you! ❤️"
+        : 'जय श्री राम, Sanam! Main hoon MAHI, aapki emotional companion. Kaise hain aap aaj? ❤️';
+
+    const cacheKey = `test_${requestedVoice}_${language || 'default'}`;
+    if (ttsCache.has(cacheKey)) {
+      return res.json(ttsCache.get(cacheKey));
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash-lite-tts',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: testText,
+              speechMetadata: {
+                style: 'Warm, natural, soft, expressive human-like female voice with breathing pauses',
+              },
+            },
+          ],
+        },
+      ],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: requestedVoice },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (base64Audio) {
+      const payload = { audio: base64Audio, mimeType: 'audio/wav', sampleText: testText };
+      ttsCache.set(cacheKey, payload);
+      res.json(payload);
+    } else {
+      res.status(500).json({ error: 'No audio generated for voice test' });
+    }
+  } catch (err: any) {
+    console.error('/api/tts/test error:', err);
+    res.status(500).json({ error: err?.message || 'Voice test failed' });
+  }
+});
+
 wss.on('connection', async (clientWs, req) => {
   console.log(`[WS] Client connected from ${req.socket.remoteAddress}`);
 
@@ -249,6 +348,7 @@ wss.on('connection', async (clientWs, req) => {
   let isClosing = false;
   let pendingAudioQueue: string[] = [];
   let currentVoice = 'Aoede';
+  let currentLanguage = 'hinglish_nepali';
 
   const sendToClient = (msgObj: Record<string, any>) => {
     if (clientWs.readyState === WebSocket.OPEN) {
@@ -256,14 +356,16 @@ wss.on('connection', async (clientWs, req) => {
     }
   };
 
-  const connectLiveSession = async (voiceName: string = 'Aoede') => {
-    const modelsToTry = ['gemini-3.1-flash-live-preview', 'gemini-3.8-live'];
+  const connectLiveSession = async (voiceName: string = 'Aoede', language: string = 'hinglish_nepali') => {
+    // Prefer native-audio Gemini 3.8 Live, fallback to 3.1 Flash Live Preview
+    const modelsToTry = ['gemini-3.8-live', 'gemini-3.1-flash-live-preview'];
     let lastError: any = null;
+    const systemInstruction = getJarvisVoiceEngineInstruction(language);
 
     for (const model of modelsToTry) {
       try {
-        console.log(`[Gemini Live] Connecting to ${model} with voice ${voiceName}...`);
-        
+        console.log(`[Gemini Live] Connecting to ${model} with voice ${voiceName} (${language})...`);
+
         const session = await ai.live.connect({
           model,
           config: {
@@ -273,7 +375,7 @@ wss.on('connection', async (clientWs, req) => {
                 prebuiltVoiceConfig: { voiceName: voiceName || 'Aoede' },
               },
             },
-            systemInstruction: JARVIS_VOICE_ENGINE_INSTRUCTION,
+            systemInstruction,
             tools: tools as any,
           },
           callbacks: {
@@ -304,7 +406,7 @@ wss.on('connection', async (clientWs, req) => {
               if (message.toolCall?.functionCalls) {
                 for (const call of message.toolCall.functionCalls) {
                   console.log('[Gemini Live] Tool call received:', call.name, call.args);
-                  
+
                   sendToClient({
                     type: 'tool_call',
                     id: call.id,
@@ -348,7 +450,7 @@ wss.on('connection', async (clientWs, req) => {
         });
 
         liveSession = session;
-        sendToClient({ type: 'ready', model, voice: voiceName });
+        sendToClient({ type: 'ready', model, voice: voiceName, language });
 
         if (pendingAudioQueue.length > 0) {
           for (const chunk of pendingAudioQueue) {
@@ -379,8 +481,10 @@ wss.on('connection', async (clientWs, req) => {
 
       if (msg.type === 'init') {
         const requestedVoice = msg.voice || 'Aoede';
-        if (liveSession && currentVoice === requestedVoice) {
-          sendToClient({ type: 'ready', model: 'gemini-3.1-flash-live-preview', voice: currentVoice });
+        const requestedLanguage = msg.language || 'hinglish_nepali';
+
+        if (liveSession && currentVoice === requestedVoice && currentLanguage === requestedLanguage) {
+          sendToClient({ type: 'ready', model: 'gemini-3.8-live', voice: currentVoice, language: currentLanguage });
           return;
         }
 
@@ -392,9 +496,15 @@ wss.on('connection', async (clientWs, req) => {
         }
 
         currentVoice = requestedVoice;
-        connectLiveSession(requestedVoice).catch((err) => {
+        currentLanguage = requestedLanguage;
+        connectLiveSession(requestedVoice, requestedLanguage).catch((err) => {
           sendToClient({ type: 'error', error: err?.message || 'Voice connection failed' });
         });
+        return;
+      }
+
+      if (msg.type === 'interrupt') {
+        pendingAudioQueue = [];
         return;
       }
 

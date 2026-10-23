@@ -1,17 +1,21 @@
 /**
  * AudioStreamer handles low-latency 24kHz PCM audio playback from Gemini Live API.
  * Uses Web Audio API with scheduled buffer queuing for gapless playback,
- * AnalyserNode for audio visualization, and instant interruption support.
+ * AnalyserNode for audio visualization, GainNode for volume control,
+ * dynamic playbackRate for speech speed adjustment, and instant interruption support.
  */
 
 export class AudioStreamer {
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  private gainNode: GainNode | null = null;
   private nextStartTime: number = 0;
   private activeSources: AudioBufferSourceNode[] = [];
   private isRunning: boolean = false;
   private onPlaybackStateChange?: (isPlaying: boolean) => void;
   private checkInterval: any = null;
+  private volume: number = 1.0;
+  private playbackSpeed: number = 1.0;
 
   constructor(onPlaybackStateChange?: (isPlaying: boolean) => void) {
     this.onPlaybackStateChange = onPlaybackStateChange;
@@ -24,7 +28,12 @@ export class AudioStreamer {
       this.analyser = this.audioCtx.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.8;
-      this.analyser.connect(this.audioCtx.destination);
+
+      this.gainNode = this.audioCtx.createGain();
+      this.gainNode.gain.setValueAtTime(this.volume, this.audioCtx.currentTime);
+
+      this.analyser.connect(this.gainNode);
+      this.gainNode.connect(this.audioCtx.destination);
     }
 
     if (this.audioCtx.state === 'suspended') {
@@ -36,6 +45,25 @@ export class AudioStreamer {
         this.updatePlaybackState();
       }, 50);
     }
+  }
+
+  public setVolume(vol: number) {
+    this.volume = Math.max(0, Math.min(1, vol));
+    if (this.gainNode && this.audioCtx) {
+      this.gainNode.gain.setValueAtTime(this.volume, this.audioCtx.currentTime);
+    }
+  }
+
+  public getVolumeSetting(): number {
+    return this.volume;
+  }
+
+  public setPlaybackSpeed(speed: number) {
+    this.playbackSpeed = Math.max(0.5, Math.min(2.0, speed));
+  }
+
+  public getPlaybackSpeed(): number {
+    return this.playbackSpeed;
   }
 
   private updatePlaybackState() {
@@ -59,7 +87,7 @@ export class AudioStreamer {
     for (let i = 0; i < data.length; i++) {
       sum += data[i];
     }
-    return sum / data.length / 255;
+    return (sum / data.length / 255) * this.volume;
   }
 
   public getFrequencyData(array: Uint8Array): void {
@@ -101,6 +129,7 @@ export class AudioStreamer {
 
       const source = this.audioCtx.createBufferSource();
       source.buffer = audioBuffer;
+      source.playbackRate.value = this.playbackSpeed;
       source.connect(this.analyser);
 
       const currentTime = this.audioCtx.currentTime;
@@ -109,7 +138,8 @@ export class AudioStreamer {
       }
 
       source.start(this.nextStartTime);
-      this.nextStartTime += audioBuffer.duration;
+      const effectiveDuration = audioBuffer.duration / this.playbackSpeed;
+      this.nextStartTime += effectiveDuration;
       this.activeSources.push(source);
 
       this.updatePlaybackState();
@@ -154,6 +184,8 @@ export class AudioStreamer {
         this.audioCtx.close();
       } catch {}
       this.audioCtx = null;
+      this.analyser = null;
+      this.gainNode = null;
     }
   }
 }

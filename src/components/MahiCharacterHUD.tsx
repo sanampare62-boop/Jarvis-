@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { ChatModule } from './ChatModule';
 import { MissionsModule } from './MissionsModule';
 import { TikTokIntroModal } from './TikTokIntroModal';
+import { SettingsModal } from './SettingsModal';
 import mahiAvatarImg from '../assets/images/mahi_avatar_hud_1791944268688.jpg';
 import {
   MessageSquare,
@@ -30,7 +31,8 @@ import {
   Calculator,
   CloudSun,
   Video,
-  Smartphone
+  Smartphone,
+  Square
 } from 'lucide-react';
 
 interface MahiCharacterHUDProps {
@@ -45,6 +47,14 @@ interface MahiCharacterHUDProps {
   onVoiceChange: (voice: string) => void;
   onTriggerPrompt: (promptText: string) => void;
   onToggleLayout?: () => void;
+  voiceSpeed?: number;
+  onVoiceSpeedChange?: (speed: number) => void;
+  voiceVolume?: number;
+  onVoiceVolumeChange?: (vol: number) => void;
+  voicePitch?: number;
+  onVoicePitchChange?: (pitch: number) => void;
+  languagePreference?: string;
+  onLanguageChange?: (lang: string) => void;
 }
 
 export const MahiCharacterHUD: React.FC<MahiCharacterHUDProps> = ({
@@ -59,6 +69,14 @@ export const MahiCharacterHUD: React.FC<MahiCharacterHUDProps> = ({
   onVoiceChange,
   onTriggerPrompt,
   onToggleLayout,
+  voiceSpeed = 1.0,
+  onVoiceSpeedChange,
+  voiceVolume = 1.0,
+  onVoiceVolumeChange,
+  voicePitch = 1.0,
+  onVoicePitchChange,
+  languagePreference = 'hinglish_nepali',
+  onLanguageChange,
 }) => {
   const [activeExpression, setActiveExpression] = useState<'Happy' | 'Serious' | 'Sad' | 'Playful' | 'Caring' | 'Excited'>('Happy');
   const [activeTab, setActiveTab] = useState<string>('Voice Engine');
@@ -241,11 +259,38 @@ export const MahiCharacterHUD: React.FC<MahiCharacterHUDProps> = ({
           </button>
 
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full glass-panel border border-cyan-500/30">
-            <Radio className={`w-3.5 h-3.5 ${isLive ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'}`} />
+            {state === 'speaking' ? (
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+            ) : state === 'thinking' ? (
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+            ) : state === 'listening' ? (
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            ) : (
+              <Radio className={`w-3.5 h-3.5 ${isLive ? 'text-cyan-400 animate-pulse' : 'text-zinc-500'}`} />
+            )}
             <span className="text-xs font-mono text-cyan-200 uppercase tracking-wider">
-              {state === 'speaking' ? 'Speaking (Emotional)' : state === 'listening' ? 'Listening...' : state === 'connecting' ? 'Connecting...' : 'Standby'}
+              {state === 'speaking'
+                ? 'Speaking (Natural Voice)'
+                : state === 'thinking'
+                ? 'MAHI is thinking...'
+                : state === 'listening'
+                ? 'Listening to Sanam...'
+                : state === 'connecting'
+                ? 'Connecting...'
+                : 'Standby'}
             </span>
           </div>
+
+          {state === 'speaking' && (
+            <button
+              onClick={onInterrupt}
+              title="Interrupt / Stop Speaking"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/40 animate-pulse cursor-pointer transition-all"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              <span>Interrupt</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -285,7 +330,7 @@ export const MahiCharacterHUD: React.FC<MahiCharacterHUDProps> = ({
         {/* Central Stage: Conditional rendering of active module */}
         <div className="relative flex-1 flex flex-col items-center justify-center h-full max-w-2xl mx-auto w-full">
           {activeTab === 'Chat' ? (
-            <ChatModule emotion={activeExpression} />
+            <ChatModule emotion={activeExpression} selectedVoice={selectedVoice} />
           ) : activeTab === 'Missions' ? (
             <MissionsModule />
           ) : activeTab === 'Calculator & Tools' ? (
@@ -397,102 +442,23 @@ export const MahiCharacterHUD: React.FC<MahiCharacterHUDProps> = ({
 
       {/* Settings Modal */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md p-6 rounded-3xl glass-panel bg-zinc-950/95 border border-cyan-500/40 shadow-2xl text-left">
-            <button
-              onClick={() => setShowSettingsModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                <SlidersHorizontal className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-display font-bold text-lg text-white">Voice Engine Controls</h3>
-                <p className="text-xs text-cyan-400">Customize JARVIS emotional voice parameters</p>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="text-zinc-300 font-medium flex justify-between mb-1">
-                  <span>Speaking Speed</span>
-                  <span className="text-cyan-400">{speakingSpeed.toFixed(1)}x</span>
-                </label>
-                <input
-                  type="range"
-                  min="0.7"
-                  max="1.4"
-                  step="0.1"
-                  value={speakingSpeed}
-                  onChange={(e) => setSpeakingSpeed(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="text-zinc-300 font-medium flex justify-between mb-1">
-                  <span>Expressiveness</span>
-                  <span className="text-cyan-400">{Math.round(expressiveness * 100)}%</span>
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="1.0"
-                  step="0.05"
-                  value={expressiveness}
-                  onChange={(e) => setExpressiveness(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="text-zinc-300 font-medium flex justify-between mb-1">
-                  <span>Emotional Intensity</span>
-                  <span className="text-cyan-400">{Math.round(emotionalIntensity * 100)}%</span>
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="1.2"
-                  step="0.05"
-                  value={emotionalIntensity}
-                  onChange={(e) => setEmotionalIntensity(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-400 cursor-pointer"
-                />
-              </div>
-
-              <div className="pt-2">
-                <span className="text-zinc-400 text-[11px] block mb-1">Voice Persona:</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Aoede', 'Kore', 'Zephyr', 'Charon'].map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => onVoiceChange(v)}
-                      className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                        selectedVoice === v
-                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
-                          : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10'
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowSettingsModal(false)}
-              className="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-cyan-600/30 cursor-pointer"
-            >
-              Apply Settings
-            </button>
-          </div>
-        </div>
+        <SettingsModal
+          onClose={() => setShowSettingsModal(false)}
+          selectedVoice={selectedVoice}
+          onVoiceChange={onVoiceChange}
+          isListening={isLive}
+          onStopListening={onToggleSession}
+          voiceSpeed={voiceSpeed}
+          onVoiceSpeedChange={onVoiceSpeedChange}
+          voiceVolume={voiceVolume}
+          onVoiceVolumeChange={onVoiceVolumeChange}
+          voicePitch={voicePitch}
+          onVoicePitchChange={onVoicePitchChange}
+          isMuted={isMuted}
+          onToggleMute={onToggleMute}
+          languagePreference={languagePreference}
+          onLanguageChange={onLanguageChange}
+        />
       )}
 
       {/* Bottom Central HUD Control Ring */}

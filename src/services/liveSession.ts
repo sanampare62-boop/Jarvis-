@@ -1,7 +1,7 @@
 import { AudioRecorder } from './audioRecorder';
 import { AudioStreamer } from './audioStreamer';
 
-export type SessionState = 'disconnected' | 'connecting' | 'listening' | 'speaking';
+export type SessionState = 'disconnected' | 'connecting' | 'listening' | 'thinking' | 'speaking';
 
 export interface ToolCallEvent {
   id: string;
@@ -33,7 +33,12 @@ export class LiveSession {
   private callbacks: LiveSessionCallbacks;
   private volumeMonitorInterval: any = null;
   private selectedVoice: string = 'Aoede';
+  private selectedLanguage: string = 'hinglish_nepali';
+  private volumeLevel: number = 1.0;
+  private playbackSpeed: number = 1.0;
   private isExplicitlyClosed: boolean = false;
+  private userSpokeRecently: boolean = false;
+  private thinkingTimeout: any = null;
 
   constructor(callbacks: LiveSessionCallbacks) {
     this.callbacks = callbacks;
@@ -47,6 +52,10 @@ export class LiveSession {
     return this.selectedVoice;
   }
 
+  public getSelectedLanguage(): string {
+    return this.selectedLanguage;
+  }
+
   private setState(newState: SessionState) {
     if (this.state !== newState) {
       this.state = newState;
@@ -54,9 +63,17 @@ export class LiveSession {
     }
   }
 
-  public async start(voiceName: string = 'Aoede') {
+  public async start(
+    voiceName: string = 'Aoede',
+    language: string = 'hinglish_nepali',
+    volume: number = 1.0,
+    speed: number = 1.0
+  ) {
     if (this.state !== 'disconnected') return;
     this.selectedVoice = voiceName;
+    this.selectedLanguage = language;
+    this.volumeLevel = volume;
+    this.playbackSpeed = speed;
     this.isExplicitlyClosed = false;
     this.setState('connecting');
 
@@ -67,6 +84,8 @@ export class LiveSession {
         this.setState(isPlaying ? 'speaking' : 'listening');
       });
       this.streamer.init();
+      this.streamer.setVolume(this.volumeLevel);
+      this.streamer.setPlaybackSpeed(this.playbackSpeed);
 
       // 2. Initialize recorder
       this.recorder = new AudioRecorder((base64Audio) => {
@@ -90,7 +109,13 @@ export class LiveSession {
 
       this.ws.onopen = () => {
         console.log('[LiveSession] WebSocket opened');
-        this.ws?.send(JSON.stringify({ type: 'init', voice: this.selectedVoice }));
+        this.ws?.send(
+          JSON.stringify({
+            type: 'init',
+            voice: this.selectedVoice,
+            language: this.selectedLanguage,
+          })
+        );
       };
 
       this.ws.onmessage = (event) => {
@@ -101,6 +126,11 @@ export class LiveSession {
             console.log('[LiveSession] Gemini Live ready:', msg);
             this.setState('listening');
           } else if (msg.type === 'audio' && msg.audio) {
+            if (this.thinkingTimeout) {
+              clearTimeout(this.thinkingTimeout);
+              this.thinkingTimeout = null;
+            }
+            this.userSpokeRecently = false;
             this.streamer?.queueAudioChunk(msg.audio);
           } else if (msg.type === 'interrupted') {
             console.log('[LiveSession] Interrupted by user');
@@ -108,7 +138,7 @@ export class LiveSession {
             this.setState('listening');
             this.callbacks.onInterrupted?.();
           } else if (msg.type === 'turn_complete') {
-            // Waiting for remaining scheduled audio chunks
+            // End of model turn
           } else if (msg.type === 'tool_call') {
             this.callbacks.onToolCall({
               id: msg.id,
@@ -128,7 +158,7 @@ export class LiveSession {
         }
       };
 
-      this.ws.onerror = (e) => {
+      this.ws.onerror = () => {
         console.error('[LiveSession] WebSocket connection error occurred');
         this.callbacks.onError('Voice connection error. Please ensure your Gemini API Key is configured in Settings > Secrets.');
       };
@@ -140,13 +170,29 @@ export class LiveSession {
         }
       };
 
-      // 5. Start audio volume monitoring for reactive visuals
+      // 5. Start audio volume monitoring for reactive visuals and speech detection
       this.volumeMonitorInterval = setInterval(() => {
-        if (this.callbacks.onUserVolume && this.recorder) {
-          this.callbacks.onUserVolume(this.recorder.getVolume());
+        if (this.recorder) {
+          const uVol = this.recorder.getVolume();
+          this.callbacks.onUserVolume?.(uVol);
+
+          // If user speaks with audible volume during listening, note speech
+          if (uVol > 0.08 && this.state === 'listening') {
+            this.userSpokeRecently = true;
+          } else if (this.userSpokeRecently && uVol < 0.03 && this.state === 'listening') {
+            // User just paused speaking, transition smoothly to thinking state
+            this.userSpokeRecently = false;
+            this.setState('thinking');
+            this.thinkingTimeout = setTimeout(() => {
+              if (this.state === 'thinking') {
+                this.setState('listening');
+              }
+            }, 5000);
+          }
         }
-        if (this.callbacks.onMahiVolume && this.streamer) {
-          this.callbacks.onMahiVolume(this.streamer.getVolume());
+        if (this.streamer) {
+          const mVol = this.streamer.getVolume();
+          this.callbacks.onMahiVolume?.(mVol);
         }
       }, 40);
     } catch (err: any) {
@@ -168,6 +214,16 @@ export class LiveSession {
     }
   }
 
+  public setVolume(vol: number) {
+    this.volumeLevel = vol;
+    this.streamer?.setVolume(vol);
+  }
+
+  public setPlaybackSpeed(speed: number) {
+    this.playbackSpeed = speed;
+    this.streamer?.setPlaybackSpeed(speed);
+  }
+
   public setMuted(muted: boolean) {
     this.recorder?.setMuted(muted);
   }
@@ -177,6 +233,10 @@ export class LiveSession {
   }
 
   public interrupt() {
+    if (this.thinkingTimeout) {
+      clearTimeout(this.thinkingTimeout);
+      this.thinkingTimeout = null;
+    }
     this.streamer?.stop();
     this.setState('listening');
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -187,7 +247,26 @@ export class LiveSession {
   public switchVoice(voice: string) {
     this.selectedVoice = voice;
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: 'init', voice }));
+      this.ws.send(
+        JSON.stringify({
+          type: 'init',
+          voice,
+          language: this.selectedLanguage,
+        })
+      );
+    }
+  }
+
+  public switchLanguage(language: string) {
+    this.selectedLanguage = language;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: 'init',
+          voice: this.selectedVoice,
+          language,
+        })
+      );
     }
   }
 
@@ -201,6 +280,10 @@ export class LiveSession {
 
   public stop() {
     this.isExplicitlyClosed = true;
+    if (this.thinkingTimeout) {
+      clearTimeout(this.thinkingTimeout);
+      this.thinkingTimeout = null;
+    }
     if (this.volumeMonitorInterval) {
       clearInterval(this.volumeMonitorInterval);
       this.volumeMonitorInterval = null;

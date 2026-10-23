@@ -2,60 +2,55 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_dark"
+    android:background="#0A0E1A"
     android:gravity="center"
     android:orientation="vertical"
     android:padding="32dp">
 
-    <!-- Glowing Cyberpunk Error Emblem -->
     <TextView
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:background="@drawable/ic_launcher_foreground"
-        android:gravity="center" />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="JARVIS • MAHI"
+        android:textColor="#06B6D4"
+        android:textSize="26sp"
+        android:textStyle="bold" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:fontFamily="sans-serif-black"
-        android:letterSpacing="0.05"
-        android:text="@string/error_offline_title"
-        android:textColor="@color/text_primary"
-        android:textSize="22sp" />
+        android:layout_marginTop="16dp"
+        android:text="Offline Mode"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
-        android:lineSpacingExtra="4dp"
-        android:text="@string/error_offline_message"
-        android:textColor="@color/text_secondary"
+        android:text="Unable to reach AI core.\nPlease check your connection."
+        android:textColor="#94A3B8"
         android:textSize="14sp" />
 
-    <!-- Retry Action Button -->
     <Button
         android:id="@+id/btnRetry"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
-        android:backgroundTint="@color/cyan_primary"
-        android:paddingHorizontal="32dp"
-        android:paddingVertical="12dp"
-        android:text="@string/btn_retry"
-        android:textColor="@color/bg_dark"
+        android:layout_marginTop="24dp"
+        android:backgroundTint="#06B6D4"
+        android:text="Retry"
+        android:textColor="#0A0E1A"
         android:textStyle="bold" />
 
-    <!-- Configure Server URL Button -->
     <Button
         android:id="@+id/btnConfigServer"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/btn_settings"
-        android:textColor="@color/cyan_light"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="#1E293B"
+        android:text="Server Settings"
+        android:textColor="#38BDF8"
         android:textSize="12sp" />
 
 </LinearLayout>
